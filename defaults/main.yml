@@ -1,0 +1,4 @@
+---
+# defaults file for ansible-geoip
+geo_ip_folder: "/usr/share/GeoIP"
+geo_ip_url: "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz"

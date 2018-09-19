@@ -1,0 +1,42 @@
+# tasks file for ansible-geoip
+---
+- stat: "path={{ geo_ip_folder }}/GeoLiteCity2.dat"
+  register: geo_st
+
+- when: (geo_ip_override | default(false)) or (geo_st.stat.exists is defined and not geo_st.stat.exists)
+  block:
+   - name: Download GeoLite City database
+     get_url: "url={{ geo_ip_url }} dest=/tmp"
+     register: download_geolite
+     tags:
+         - geoip
+
+   - name: Ensure that GeoIP folder exists
+     file: "path={{ geo_ip_folder }} state=directory mode=0755"
+     tags:
+         - geoip
+
+   - name: Unarchive a file that is already on the remote machine
+     unarchive:
+       src: "{{download_geolite.dest}}"
+       dest: "{{ geo_ip_folder }}"
+       remote_src: yes
+       keep_newer: True
+       extra_opts:
+         - "--strip-components=1"
+#     environment:
+#      PATH: /usr/bin
+     register: geoip_unarchive
+
+   - name: cleanup geoip files
+     file:
+      path: "{{download_geolite.dest}}"
+      state: absent
+#
+#   - name: Unpack GeoLite database
+#     shell: "gunzip {{download_geolite.dest}} && mv /tmp/GeoLiteCity2.dat {{ geo_ip_folder }}/"
+#     when: not ansible_check_mode
+#     tags:
+#         - geoip
+
+
