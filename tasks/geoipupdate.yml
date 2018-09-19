@@ -1,0 +1,60 @@
+
+- block:
+  - file:
+      path: /usr/share/GeoIP
+      state: directory
+
+  - yum:
+      name:
+        - libcurl-devel
+        - zlib-devel
+      enablerepo: CityFan
+      state: present
+
+  - name: Download geoipupdate source
+    get_url:
+      url: "{{geo_ip_update_repo}}"
+      dest: "/opt/geoipupdate-{{geo_ip_update_version}}.tar.gz"
+      mode: 0440
+
+  - name: Extract geoipupdate tarball
+    unarchive: src="/opt/geoipupdate-{{geo_ip_update_version}}.tar.gz" dest=/opt/ copy=no
+#    no_log: True
+
+  - name: bootstrap geoip
+    command: chdir="/opt/geoipupdate-{{ geo_ip_update_version }}" bash ./bootstrap
+
+  - name: Configure geoip
+    command: chdir="/opt/geoipupdate-{{ geo_ip_update_version }}" bash ./configure
+
+  - name: clean
+    shell: chdir="/opt/geoipupdate-{{ geo_ip_update_version }}"  make clean
+
+  - name: make geoipupdate
+    command: chdir="/opt/geoipupdate-{{ geo_ip_update_version }}" make
+    no_log: True
+
+  - name: make install geoipupdate
+    command: chdir="/opt/geoipupdate-{{ geo_ip_update_version }}" make install
+
+  - name: cleanup geoip files
+    file:
+      path: "/opt/geoipupdate-{{geo_ip_update_version}}.tar.gz"
+      state: absent
+
+  - template:
+      src: geoip.conf.j2
+      dest: /usr/local/etc/GeoIP.conf
+
+  - name: execute geoipupdate
+    command: /usr/local/bin/geoipupdate -f /usr/local/etc/GeoIP.conf
+
+  - name: add cron job
+    cron:
+      name: geoip autoupdate
+      weekday: 3
+      minute: 19
+      hour: 3
+      user: root
+      job: "/usr/local/bin/geoipupdate -f /usr/local/etc/GeoIP.conf"
+      cron_file: ansible_geoipupdate
